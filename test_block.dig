@@ -1,0 +1,2831 @@
+<?xml version="1.0" encoding="utf-8"?>
+<circuit>
+  <version>1</version>
+  <attributes/>
+  <visualElements>
+    <visualElement>
+      <elementName>External</elementName>
+      <elementAttributes>
+        <entry>
+          <string>applicationType</string>
+          <appType>GHDL</appType>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>control_circuit</string>
+        </entry>
+        <entry>
+          <string>externalInputs</string>
+          <string>clk_1hz,clk_2hz,clk_5hz,clk_10hz,start,jump,squat,replay,rand2,rand0,block_temp:6</string>
+        </entry>
+        <entry>
+          <string>Code</string>
+          <string>library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity control_circuit is	
+	port	(
+		-- Input ports
+		clk_1hz, clk_2hz, clk_5hz, clk_10hz : in std_logic;
+		start, jump, squat,replay : in std_logic;
+		rand2, rand0 : in std_logic;	
+		block_temp : in std_logic_vector(5 downto 0);
+		-- Output ports
+		time_signal : out std_logic_vector(5 downto 0);	
+		q_signal : out std_logic_vector(5 downto 0);	
+		ground : out std_logic_vector(19 downto 0);	
+		display5, display4, display3, display2, display1, display0 : out std_logic_vector(19 downto 0);	
+		player_display : out std_logic_vector(5 downto 0));
+end control_circuit;
+
+architecture control of control_circuit is	
+	signal Q : integer := 0;
+	signal Time : integer := 0; --遊戲執行的時間
+	signal StartTime: integer:= 0; --遊戲開始後動畫停滯時間用--
+	signal GameOverTime: integer:=0; --遊戲結束後動畫停滯時間用--
+	signal Level : integer := 0;
+	signal ground_signal: std_logic_vector(19 downto 0) := &quot;00000000000000000000&quot;;
+------------player signal-----------------------------------------------------
+	signal pattern_jump : std_logic_vector(5 downto 0) := &quot;011100&quot;;
+	signal pattern_squat: std_logic_vector(5 downto 0) := &quot;000001&quot;;
+	signal pattern_start: std_logic_vector(5 downto 0) := &quot;000111&quot;;
+	signal pattern_reset: std_logic_vector(5 downto 0) := &quot;000000&quot;;
+------------block signal------------------------------------------------------
+	signal block_2: std_logic_vector(19 downto 0) := &quot;00000000000000000000&quot;;
+	signal block_0: std_logic_vector(19 downto 0) := &quot;00000000000000000000&quot;;
+	signal block_zero: std_logic_vector(19 downto 0) := &quot;00000000000000000000&quot;;
+	signal crush : std_logic := &apos;0&apos;;
+------------game over display------------------------------------------------------
+	signal gg5: std_logic_vector(19 downto 0) := &quot;00001100000001100000&quot;;
+	signal gg4: std_logic_vector(19 downto 0) := &quot;00010000000010000000&quot;;
+	signal gg3: std_logic_vector(19 downto 0) := &quot;00010000000010000000&quot;;
+	signal gg2: std_logic_vector(19 downto 0) := &quot;00010111000010111000&quot;;
+	signal gg1: std_logic_vector(19 downto 0) := &quot;00010001000010001000&quot;;
+	signal gg0: std_logic_vector(19 downto 0) := &quot;00001101000001101000&quot;;
+------------------------------------------------------------------------------
+Begin
+------------------display-----------------------------------------------------
+display5 &lt;= block_zero;
+display4 &lt;= block_zero;
+display3 &lt;= block_zero;
+display2 &lt;= block_2;
+display1 &lt;= block_zero;
+display0 &lt;= block_0;
+ground &lt;= ground_signal;
+time_signal &lt;= std_logic_vector(to_unsigned(time, 6));
+q_signal &lt;= std_logic_vector(to_unsigned(q, 6));
+----------------player figures------------------------------------------------
+	player_display &lt;= pattern_jump when  (jump = &apos;1&apos;) and (Q = 1 or  Q = 2 or  Q = 3 )
+		else pattern_squat when (squat = &apos;1&apos;) and (Q = 1 or  Q = 2 or  Q = 3 )
+		else pattern_start when (squat = &apos;0&apos;) and (jump = &apos;0&apos;) and (Q = 1 or  Q = 2 or  Q = 3 )
+		else pattern_reset;
+----------------crush signal-------------------------------------------------
+	crush &lt;= (player_display(0) and block_temp(0))
+		or (player_display(1) and block_temp(1))
+		or (player_display(2) and block_temp(2))
+		or (player_display(3) and block_temp(3))
+		or (player_display(4) and block_temp(4))
+		or (player_display(5) and block_temp(5));
+------------------state control------------------------------------------------
+process(clk_1hz, clk_2hz, clk_5hz, clk_10hz, Q) is
+ 	begin
+ 		if (Q = 0) and (start = &apos;1&apos;) then --開機畫面待做
+			if (rising_edge(clk_1hz)) then 
+				StartTime &lt;= StartTime + 1;
+			end if;
+			if(StartTime = 3) then  
+				Q &lt;= 1; StartTime &lt;= 0; 
+			end if;
+		end if;
+
+		if (Q = 1) then
+			ground_signal &lt;= &quot;11111111111111111111&quot;;
+			if (rising_edge(clk_1hz)) then 
+				Time &lt;= Time + 1;
+			end if;
+			if(Time = 25) then  
+				Q &lt;= 2; Time &lt;= 0; 
+			end if;
+			if(crush = &apos;1&apos;) then  
+				Q &lt;= 5; Time &lt;= 0; 
+			end if;
+		end if;
+
+		if (Q = 2) then
+			ground_signal &lt;= &quot;11111111111111111111&quot;;
+			if (rising_edge(clk_1hz)) then 
+				Time &lt;= Time + 1;
+			end if;
+			if(Time = 40) then  
+				Q &lt;= 3; Time &lt;= 0; 
+			end if;
+			if(crush = &apos;1&apos;) then  
+				Q &lt;= 5; Time &lt;= 0; 
+			end if;
+		end if;
+
+		if (Q = 3) then
+			ground_signal &lt;= &quot;11111111111111111111&quot;;
+			if (rising_edge(clk_1hz)) then 
+				Time &lt;= Time + 1;
+			end if;
+			if(Time = 60) then  
+				Q &lt;= 4; Time &lt;= 0; 
+			end if;
+			if(crush = &apos;1&apos;) then  
+				Q &lt;= 5; Time &lt;= 0; 
+			end if;
+		end if;
+
+		if (Q = 4) then
+			ground_signal &lt;= &quot;11111111111111111111&quot;;
+			if(crush = &apos;1&apos;) then  
+				Q &lt;= 5; 
+			end if;
+		end if;
+
+		if (Q = 5) then
+			if (rising_edge(clk_1hz)) then 
+				GameOverTime &lt;= GameOverTime + 1;
+			end if;
+			if(GameOverTime &gt; 2) then  --gg待做
+				block_2 &lt;= &quot;00000000000000000000&quot; ;
+				block_0 &lt;= &quot;00000000000000000000&quot; ;
+				ground_signal &lt;= &quot;00000000000000000000&quot;;
+			end if;
+			if(Replay = &apos;1&apos;) then  
+				Q &lt;= 0; GameOverTime &lt;= 0; 
+			end if;
+		end if;
+----------------block generator level1----------------------------------------
+		if (rising_edge(clk_1hz)) and (Q = 1) then
+			if (block_2(0) and rand2) or (block_0(0) and rand2)then
+				block_2 &lt;= block_2(18 downto 0) &amp; &quot;0&quot;;
+			else block_2 &lt;= block_2(18 downto 0) &amp; rand2;
+			end if;
+			if (block_0(0) and rand0) or (block_2(0) and rand0) then
+				block_0 &lt;= block_0(18 downto 0) &amp; &quot;0&quot;;
+			else block_0 &lt;= block_0(18 downto 0) &amp; rand0;
+			end if;
+		end if;
+----------------block generator level2----------------------------------------
+		if (rising_edge(clk_2hz)) and (Q = 2) then
+			if (block_2(0) and rand2) or (block_0(0) and rand2)then
+				block_2 &lt;= block_2(18 downto 0) &amp; &quot;0&quot;;
+			else block_2 &lt;= block_2(18 downto 0) &amp; rand2;
+			end if;
+			if (block_0(0) and rand0) or (block_2(0) and rand0) then
+				block_0 &lt;= block_0(18 downto 0) &amp; &quot;0&quot;;
+			else block_0 &lt;= block_0(18 downto 0) &amp; rand0;
+			end if;
+		end if;
+----------------block generator level3----------------------------------------
+		if (rising_edge(clk_5hz)) and (Q = 3) then
+			if (block_2(0) and rand2) or (block_0(0) and rand2)then
+				block_2 &lt;= block_2(18 downto 0) &amp; &quot;0&quot;;
+			else block_2 &lt;= block_2(18 downto 0) &amp; rand2;
+			end if;
+			if (block_0(0) and rand0) or (block_2(0) and rand0) then
+				block_0 &lt;= block_0(18 downto 0) &amp; &quot;0&quot;;
+			else block_0 &lt;= block_0(18 downto 0) &amp; rand0;
+			end if;
+		end if;
+----------------block generator level4----------------------------------------
+		if (rising_edge(clk_2hz)) and (Q = 10) then
+			if (block_2(0) and rand2) or (block_0(0) and rand2)then
+				block_2 &lt;= block_2(18 downto 0) &amp; &quot;0&quot;;
+			else block_2 &lt;= block_2(18 downto 0) &amp; rand2;
+			end if;
+			if (block_0(0) and rand0) or (block_2(0) and rand0) then
+				block_0 &lt;= block_0(18 downto 0) &amp; &quot;0&quot;;
+			else block_0 &lt;= block_0(18 downto 0) &amp; rand0;
+			end if;
+		end if;
+--------------------------------------------------------------------------------
+end process;
+end control;</string>
+        </entry>
+        <entry>
+          <string>externalOutputs</string>
+          <string>time_signal:6,q_signal:6,ground:20,display5:20,display4:20,display3:20,display2:20,display1:20,display0:20,player_display:6</string>
+        </entry>
+        <entry>
+          <string>Width</string>
+          <int>9</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1760" y="240"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="-140"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="-80"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="-120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="-60"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="-40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="20"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="100"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="120"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="180"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="200"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="260"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color>
+            <red>51</red>
+            <green>204</green>
+            <blue>0</blue>
+            <alpha>255</alpha>
+          </awt-color>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="3"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>20</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="320" y="340"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="240" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="160" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="80" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="0" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-80" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-160" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-240" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-320" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-400" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-480" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-560" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-640" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-720" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-800" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-880" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-960" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-1020" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-1100" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>Color</string>
+          <awt-color reference="../../../../visualElement[123]/elementAttributes/entry[2]/awt-color"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-1180" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="0"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="-80"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="0"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="80"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="160"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="320"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Or</elementName>
+      <elementAttributes>
+        <entry>
+          <string>wideShape</string>
+          <boolean>true</boolean>
+        </entry>
+      </elementAttributes>
+      <pos x="-1300" y="240"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="80"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="160"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="240"/>
+    </visualElement>
+    <visualElement>
+      <elementName>LED</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Size</string>
+          <int>3</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="1"/>
+        </entry>
+      </elementAttributes>
+      <pos x="-980" y="320"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>mirror</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>6</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1,1,1,1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1340" y="360"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Clock</elementName>
+      <elementAttributes>
+        <entry>
+          <string>runRealTime</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>clk_2hz</string>
+        </entry>
+        <entry>
+          <string>Frequency</string>
+          <int>2</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="140"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>splitterSpreading</string>
+          <int>4</int>
+        </entry>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="2"/>
+        </entry>
+        <entry>
+          <string>Input Splitting</string>
+          <string>1,1,1,1,1,1</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>6</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1340" y="320"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Splitter</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Input Splitting</string>
+          <string>2</string>
+        </entry>
+        <entry>
+          <string>Output Splitting</string>
+          <string>1,1</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1780" y="400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes/>
+      <pos x="-1980" y="560"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Label</string>
+          <string>seed</string>
+        </entry>
+        <entry>
+          <string>Bits</string>
+          <int>2</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="520"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Clock</elementName>
+      <elementAttributes>
+        <entry>
+          <string>runRealTime</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>clk_1hz</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="100"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Clock</elementName>
+      <elementAttributes>
+        <entry>
+          <string>runRealTime</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>clk_5hz</string>
+        </entry>
+        <entry>
+          <string>Frequency</string>
+          <int>5</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="180"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Clock</elementName>
+      <elementAttributes>
+        <entry>
+          <string>runRealTime</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>clk_10hz</string>
+        </entry>
+        <entry>
+          <string>Frequency</string>
+          <int>10</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="220"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Label</string>
+          <string>start</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="280"/>
+    </visualElement>
+    <visualElement>
+      <elementName>In</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Label</string>
+          <string>replay</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="320"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Button</elementName>
+      <elementAttributes>
+        <entry>
+          <string>mapToKey</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>UP</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="400"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Button</elementName>
+      <elementAttributes>
+        <entry>
+          <string>mapToKey</string>
+          <boolean>true</boolean>
+        </entry>
+        <entry>
+          <string>Label</string>
+          <string>DOWN</string>
+        </entry>
+      </elementAttributes>
+      <pos x="-1980" y="440"/>
+    </visualElement>
+    <visualElement>
+      <elementName>random.dig</elementName>
+      <elementAttributes/>
+      <pos x="-1920" y="480"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>Bits</string>
+          <int>2</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1800" y="520"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="2"/>
+        </entry>
+        <entry>
+          <string>Bits</string>
+          <int>6</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1600" y="40"/>
+    </visualElement>
+    <visualElement>
+      <elementName>Out</elementName>
+      <elementAttributes>
+        <entry>
+          <string>rotation</string>
+          <rotation rotation="2"/>
+        </entry>
+        <entry>
+          <string>Bits</string>
+          <int>6</int>
+        </entry>
+      </elementAttributes>
+      <pos x="-1600" y="100"/>
+    </visualElement>
+  </visualElements>
+  <wires>
+    <wire>
+      <p1 x="320" y="320"/>
+      <p2 x="560" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="320"/>
+      <p2 x="-980" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="320"/>
+      <p2 x="-1320" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="320"/>
+      <p2 x="-1760" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="320"/>
+      <p2 x="-1960" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="320"/>
+      <p2 x="-1460" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="320"/>
+      <p2 x="-1300" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="0"/>
+      <p2 x="-980" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="0"/>
+      <p2 x="-1320" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="0"/>
+      <p2 x="480" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="0"/>
+      <p2 x="-1300" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="-1460" y="-260"/>
+      <p2 x="460" y="-260"/>
+    </wire>
+    <wire>
+      <p1 x="-1880" y="260"/>
+      <p2 x="-1760" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="260"/>
+      <p2 x="-1560" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="-1400" y="-200"/>
+      <p2 x="520" y="-200"/>
+    </wire>
+    <wire>
+      <p1 x="-1860" y="520"/>
+      <p2 x="-1820" y="520"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="520"/>
+      <p2 x="-1940" y="520"/>
+    </wire>
+    <wire>
+      <p1 x="-1820" y="520"/>
+      <p2 x="-1800" y="520"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="200"/>
+      <p2 x="-1300" y="200"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="200"/>
+      <p2 x="-1180" y="200"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="200"/>
+      <p2 x="-1100" y="200"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="200"/>
+      <p2 x="-1020" y="200"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="140"/>
+      <p2 x="-1020" y="140"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="140"/>
+      <p2 x="-1880" y="140"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="-80"/>
+      <p2 x="-980" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="-80"/>
+      <p2 x="-1320" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="-80"/>
+      <p2 x="460" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-80"/>
+      <p2 x="-1300" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="80"/>
+      <p2 x="-980" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="80"/>
+      <p2 x="-1320" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="80"/>
+      <p2 x="500" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="80"/>
+      <p2 x="-1300" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="-1820" y="400"/>
+      <p2 x="-1780" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="400"/>
+      <p2 x="-1920" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="400"/>
+      <p2 x="-1380" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-20"/>
+      <p2 x="-1020" y="-20"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="340"/>
+      <p2 x="-1760" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="340"/>
+      <p2 x="-1440" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="-1480" y="-280"/>
+      <p2 x="440" y="-280"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="280"/>
+      <p2 x="-1300" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="280"/>
+      <p2 x="-1180" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="280"/>
+      <p2 x="-1100" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="280"/>
+      <p2 x="-1020" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1900" y="280"/>
+      <p2 x="-1760" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="280"/>
+      <p2 x="-1940" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="280"/>
+      <p2 x="-1500" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1420" y="-220"/>
+      <p2 x="500" y="-220"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="540"/>
+      <p2 x="-1920" y="540"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="220"/>
+      <p2 x="-1020" y="220"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="220"/>
+      <p2 x="-1920" y="220"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="-160"/>
+      <p2 x="440" y="-160"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="160"/>
+      <p2 x="-980" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="160"/>
+      <p2 x="-1320" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="160"/>
+      <p2 x="520" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="160"/>
+      <p2 x="-1300" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="-1780" y="480"/>
+      <p2 x="-1360" y="480"/>
+    </wire>
+    <wire>
+      <p1 x="-2100" y="480"/>
+      <p2 x="-1920" y="480"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-100"/>
+      <p2 x="-1020" y="-100"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="100"/>
+      <p2 x="-1920" y="100"/>
+    </wire>
+    <wire>
+      <p1 x="-1600" y="100"/>
+      <p2 x="-1580" y="100"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="100"/>
+      <p2 x="-1860" y="100"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="420"/>
+      <p2 x="-1340" y="420"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-40"/>
+      <p2 x="-1300" y="-40"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="-40"/>
+      <p2 x="-1180" y="-40"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="-40"/>
+      <p2 x="-1100" y="-40"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="-40"/>
+      <p2 x="-1020" y="-40"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="360"/>
+      <p2 x="-1300" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="360"/>
+      <p2 x="-1180" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="360"/>
+      <p2 x="-1100" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="360"/>
+      <p2 x="-1020" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1900" y="360"/>
+      <p2 x="-1760" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="360"/>
+      <p2 x="-1420" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="40"/>
+      <p2 x="-1300" y="40"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="40"/>
+      <p2 x="-1180" y="40"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="40"/>
+      <p2 x="-1100" y="40"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="40"/>
+      <p2 x="-1020" y="40"/>
+    </wire>
+    <wire>
+      <p1 x="-1600" y="40"/>
+      <p2 x="-1560" y="40"/>
+    </wire>
+    <wire>
+      <p1 x="-1500" y="-300"/>
+      <p2 x="560" y="-300"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="300"/>
+      <p2 x="-1480" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="300"/>
+      <p2 x="-1020" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="300"/>
+      <p2 x="-1760" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="-1440" y="-240"/>
+      <p2 x="480" y="-240"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="240"/>
+      <p2 x="-980" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="240"/>
+      <p2 x="-1320" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="240"/>
+      <p2 x="540" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1860" y="240"/>
+      <p2 x="-1760" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="240"/>
+      <p2 x="-1300" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="560"/>
+      <p2 x="-1920" y="560"/>
+    </wire>
+    <wire>
+      <p1 x="-1380" y="-180"/>
+      <p2 x="540" y="-180"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="180"/>
+      <p2 x="-1900" y="180"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="500"/>
+      <p2 x="-1920" y="500"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="-120"/>
+      <p2 x="-1180" y="-120"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="-120"/>
+      <p2 x="-1100" y="-120"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="-120"/>
+      <p2 x="-1020" y="-120"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="120"/>
+      <p2 x="-1300" y="120"/>
+    </wire>
+    <wire>
+      <p1 x="-1200" y="120"/>
+      <p2 x="-1180" y="120"/>
+    </wire>
+    <wire>
+      <p1 x="-1120" y="120"/>
+      <p2 x="-1100" y="120"/>
+    </wire>
+    <wire>
+      <p1 x="-1040" y="120"/>
+      <p2 x="-1020" y="120"/>
+    </wire>
+    <wire>
+      <p1 x="-1780" y="440"/>
+      <p2 x="-1760" y="440"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="440"/>
+      <p2 x="-1900" y="440"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="380"/>
+      <p2 x="-1400" y="380"/>
+    </wire>
+    <wire>
+      <p1 x="-1960" y="380"/>
+      <p2 x="-1760" y="380"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="60"/>
+      <p2 x="-1020" y="60"/>
+    </wire>
+    <wire>
+      <p1 x="-2100" y="60"/>
+      <p2 x="-1920" y="60"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="-160"/>
+      <p2 x="320" y="-140"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="-80"/>
+      <p2 x="320" y="-60"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="0"/>
+      <p2 x="320" y="20"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="80"/>
+      <p2 x="320" y="100"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="160"/>
+      <p2 x="320" y="180"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="240"/>
+      <p2 x="320" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="320" y="320"/>
+      <p2 x="320" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="-80"/>
+      <p2 x="-1220" y="-60"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="0"/>
+      <p2 x="-1220" y="20"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="80"/>
+      <p2 x="-1220" y="100"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="160"/>
+      <p2 x="-1220" y="180"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="320"/>
+      <p2 x="-1220" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="-1220" y="240"/>
+      <p2 x="-1220" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="-1860" y="100"/>
+      <p2 x="-1860" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1480" y="-280"/>
+      <p2 x="-1480" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="520" y="-200"/>
+      <p2 x="520" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="-1420" y="-220"/>
+      <p2 x="-1420" y="360"/>
+    </wire>
+    <wire>
+      <p1 x="460" y="-260"/>
+      <p2 x="460" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="-1360" y="320"/>
+      <p2 x="-1360" y="480"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="520"/>
+      <p2 x="-1940" y="540"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="280"/>
+      <p2 x="-1940" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1940" y="320"/>
+      <p2 x="-1940" y="500"/>
+    </wire>
+    <wire>
+      <p1 x="-1880" y="140"/>
+      <p2 x="-1880" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="-1560" y="40"/>
+      <p2 x="-1560" y="260"/>
+    </wire>
+    <wire>
+      <p1 x="-1500" y="-300"/>
+      <p2 x="-1500" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1820" y="400"/>
+      <p2 x="-1820" y="520"/>
+    </wire>
+    <wire>
+      <p1 x="540" y="-180"/>
+      <p2 x="540" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1440" y="-240"/>
+      <p2 x="-1440" y="340"/>
+    </wire>
+    <wire>
+      <p1 x="480" y="-240"/>
+      <p2 x="480" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="-1380" y="-180"/>
+      <p2 x="-1380" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-100"/>
+      <p2 x="-1320" y="-80"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="-20"/>
+      <p2 x="-1320" y="0"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="60"/>
+      <p2 x="-1320" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="140"/>
+      <p2 x="-1320" y="160"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="300"/>
+      <p2 x="-1320" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1320" y="220"/>
+      <p2 x="-1320" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="-1960" y="320"/>
+      <p2 x="-1960" y="380"/>
+    </wire>
+    <wire>
+      <p1 x="-1900" y="180"/>
+      <p2 x="-1900" y="280"/>
+    </wire>
+    <wire>
+      <p1 x="-1900" y="360"/>
+      <p2 x="-1900" y="440"/>
+    </wire>
+    <wire>
+      <p1 x="-1580" y="100"/>
+      <p2 x="-1580" y="240"/>
+    </wire>
+    <wire>
+      <p1 x="560" y="-300"/>
+      <p2 x="560" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-1460" y="-260"/>
+      <p2 x="-1460" y="320"/>
+    </wire>
+    <wire>
+      <p1 x="-2100" y="60"/>
+      <p2 x="-2100" y="480"/>
+    </wire>
+    <wire>
+      <p1 x="-1780" y="440"/>
+      <p2 x="-1780" y="480"/>
+    </wire>
+    <wire>
+      <p1 x="500" y="-220"/>
+      <p2 x="500" y="80"/>
+    </wire>
+    <wire>
+      <p1 x="-1400" y="-200"/>
+      <p2 x="-1400" y="380"/>
+    </wire>
+    <wire>
+      <p1 x="440" y="-280"/>
+      <p2 x="440" y="-160"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="-120"/>
+      <p2 x="-1020" y="-100"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="-40"/>
+      <p2 x="-1020" y="-20"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="40"/>
+      <p2 x="-1020" y="60"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="120"/>
+      <p2 x="-1020" y="140"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="200"/>
+      <p2 x="-1020" y="220"/>
+    </wire>
+    <wire>
+      <p1 x="-1020" y="280"/>
+      <p2 x="-1020" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="-1980" y="420"/>
+      <p2 x="-1980" y="440"/>
+    </wire>
+    <wire>
+      <p1 x="-1340" y="360"/>
+      <p2 x="-1340" y="420"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="220"/>
+      <p2 x="-1920" y="300"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="340"/>
+      <p2 x="-1920" y="400"/>
+    </wire>
+    <wire>
+      <p1 x="-1920" y="60"/>
+      <p2 x="-1920" y="100"/>
+    </wire>
+  </wires>
+  <measurementOrdering/>
+</circuit>
